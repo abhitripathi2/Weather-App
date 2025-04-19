@@ -90,19 +90,30 @@ public class WeatherAppUI extends Application {
         String url = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + apiKey;
 
         try {
-            // Fetch weather data
+            // Fetch weather data from API
             String response = WeatherFetcher.fetchWeatherData(url);
-            JSONObject jsonResponse = new JSONObject(response);
+            JSONObject json = new JSONObject(response);
 
-            // Extract weather information
-            String cityName = jsonResponse.getString("name");
-            String weatherDescription = jsonResponse.getJSONArray("weather").getJSONObject(0).getString("description");
-            double temperature = jsonResponse.getJSONObject("main").getDouble("temp") - 273.15; // Convert Kelvin to Celsius
+            // Extract data
+            String cityName = json.getString("name");
+            String country = json.getJSONObject("sys").getString("country");
+            JSONObject main = json.getJSONObject("main");
+            double temp = main.getDouble("temp") - 273.15;
+            int humidity = main.getInt("humidity");
 
-            // Return formatted result
-            return String.format("Weather in %s:\nDescription: %s\nTemperature: %.2f°C", cityName, weatherDescription, temperature);
+            JSONObject wind = json.getJSONObject("wind");
+            double windSpeed = wind.getDouble("speed");
+
+            String condition = json.getJSONArray("weather").getJSONObject(0).getString("description");
+
+            // Return a formatted string
+            return String.format(
+                    "📍 Location: %s, %s\n🌡️ Temperature: %.2f°C\n💧 Humidity: %d%%\n💨 Wind Speed: %.2f m/s\n🌥️ Condition: %s",
+                    cityName, country, temp, humidity, windSpeed, condition
+            );
         } catch (Exception e) {
-            return "Error fetching weather data. Please try again.";
+            e.printStackTrace();
+            return "⚠️ Error fetching weather data. Please check the city name or try again.";
         }
     }
 
