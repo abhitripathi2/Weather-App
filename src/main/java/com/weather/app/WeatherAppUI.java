@@ -39,13 +39,16 @@
 //    }
 //    public static void main(String[] args) {
 //        launch(args);
-//    }
-//}
+//
 package com.weather.app;
 
+import javafx.animation.FadeTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.TranslateTransition;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -56,10 +59,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javafx.util.Duration;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.Arrays;
-import java.util.List;
+import java.time.LocalDate;
+import java.util.*;
 
 public class WeatherAppUI extends Application {
     private Label cityLabel;
@@ -75,6 +80,19 @@ public class WeatherAppUI extends Application {
     private ImageView weatherIcon;
 
     private Label title;
+    private ProgressIndicator progressIndicator;
+
+    private VBox root;
+
+    private HBox forecastContainer;
+
+    private List<Label> forecastTextLabels = new ArrayList<>();
+
+    private boolean isDarkMode = false;
+
+
+
+
 
 
 
@@ -109,6 +127,11 @@ public class WeatherAppUI extends Application {
         fetchButton.setOnAction(e -> updateWeather());
         fetchButton.setStyle("-fx-background-color: #1E90FF; -fx-text-fill: white;");
 
+        //5 day's forecast
+        forecastContainer = new HBox(20);  // spacing between each day’s forecast
+        forecastContainer.setAlignment(Pos.CENTER);
+
+
         HBox inputBox = new HBox(10, cityLabel, cityInput, fetchButton);
         inputBox.setAlignment(Pos.CENTER);
 
@@ -130,11 +153,15 @@ public class WeatherAppUI extends Application {
         weatherBox.setAlignment(Pos.CENTER);
         weatherBox.setPadding(new Insets(10));
 
+
+
         //Error Label
         errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: red;");
 
-        VBox root = new VBox(20);
+
+
+        root = new VBox(20);
         root.setAlignment(Pos.CENTER);
         root.setPadding(new Insets(20));
         root.setStyle("-fx-background-color: #1e1e1e;");  // DARK BACKGROUND
@@ -143,95 +170,63 @@ public class WeatherAppUI extends Application {
         ToggleButton themeToggle = new ToggleButton("🌙 Dark Mode");
         themeToggle.setStyle("-fx-background-color: #444; -fx-text-fill: white;");
 
+
         themeToggle.setOnAction(e -> {
             if (themeToggle.isSelected()) {
                 themeToggle.setText("☀️ Light Mode");
+                isDarkMode = true; // dark mode active
                 applyDarkTheme(root);
             } else {
                 themeToggle.setText("🌙 Dark Mode");
+                isDarkMode = false; // light mode active
                 applyLightTheme(root);
             }
+
+            // Refresh forecast colors after theme change
+            updateForecastTheme();
         });
 
+
+
         //  Add all elements to root
-        root.getChildren().addAll(title, themeToggle, inputBox, weatherBox, errorLabel);
+        root.getChildren().addAll(title, themeToggle, inputBox, weatherBox, forecastContainer, errorLabel);
 
         Scene scene = new Scene(root, 450, 350);
         primaryStage.setScene(scene);
         primaryStage.show();
 
-        applyDarkTheme(root); // Or applyLightTheme(root); depending on default
+        applyLightTheme(root);// Or applyLightTheme(root); depending on default
+        applyThemeTransition();
+        applyZoomInEffect();
+
+        
 
 
     }
 
-//        // Create UI elements
-//        Label cityLabel = new Label("Enter City Name:");
-//        TextField cityTextField = new TextField();
-//        Button getWeatherButton = new Button("Get Weather");
-//        TextArea resultArea = new TextArea();
-//        resultArea.setEditable(false);
-//        resultArea.setPrefHeight(200);
-//
-//        // Set padding and spacing
-//        VBox vbox = new VBox(10, cityLabel, cityTextField, getWeatherButton, resultArea);
-//        vbox.setPadding(new Insets(20));
-//
-//        // Event handling for the Get Weather button
-//        getWeatherButton.setOnAction(e -> {
-//            String city = cityTextField.getText();
-//            if (!city.isEmpty()) {
-//                String weatherInfo = fetchWeather(city);
-//                resultArea.setText(weatherInfo);
-//            } else {
-//                resultArea.setText("Please enter a city name.");
-//            }
-//        });
-//
-//        // Set up the scene
-//        Scene scene = new Scene(vbox, 400, 300);
-//        primaryStage.setScene(scene);
-//        primaryStage.setTitle("Weather App");
-//        primaryStage.show();
-//    }
+    private void applyThemeTransition() {
+    }
 
 
 
-//    private String fetchWeather(String city) {
-//        String apiKey = "e4e1c82d1a5432a532f6bba792a86a46";  // Replace with your API key
-//        String url = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + apiKey;
-//
-//        try {
-//            // Fetch weather data from API
-//            String response = WeatherFetcher.fetchWeatherData(url);
-//            JSONObject json = new JSONObject(response);
-//
-//            // Extract data
-//            String cityName = json.getString("name");
-//            String country = json.getJSONObject("sys").getString("country");
-//            JSONObject main = json.getJSONObject("main");
-//            double temp = main.getDouble("temp") - 273.15;
-//            int humidity = main.getInt("humidity");
-//
-//            JSONObject wind = json.getJSONObject("wind");
-//            double windSpeed = wind.getDouble("speed");
-//
-//            String condition = json.getJSONArray("weather").getJSONObject(0).getString("description");
-//
-//            // Return a formatted string
-//            return String.format(
-//                    "📍 Location: %s, %s\n🌡️ Temperature: %.2f°C\n💧 Humidity: %d%%\n💨 Wind Speed: %.2f m/s\n🌥️ Condition: %s",
-//                    cityName, country, temp, humidity, windSpeed, condition
-//            );
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            return "⚠️ Error fetching weather data. Please check the city name or try again.";
-//        }
-//    }
+    private void applyThemeTransition(Parent root, String color) {
+            TranslateTransition transition = new TranslateTransition();
+            transition.setNode(root);
+            transition.setDuration(Duration.millis(500));
+            transition.setByX(100);  // Horizontal movement
+            transition.setCycleCount(1);
+            transition.setAutoReverse(true);
+            transition.setOnFinished(e -> {
+                root.setStyle("-fx-background-color: " + color + ";");
+            });
+            transition.play();
+    }
+
 
 
 
     private void updateWeather() {
+        showLoading();  // Show loading indicator
         String city = cityInput.getText().trim();
         if (city.isEmpty()) {
             errorLabel.setText("❌ Please enter a city name.");
@@ -273,12 +268,161 @@ public class WeatherAppUI extends Application {
             windLabel.setText("💨 Wind Speed: " + windSpeed + " m/s");
             conditionLabel.setText("🌥️ Condition: " + condition);
 
+            // Apply fade-in effect
+            //applyFadeInEffect(weatherIcon);
+            applyFadeInEffect(locationLabel);
+            applyFadeInEffect(temperatureLabel);
+            applyFadeInEffect(humidityLabel);
+            applyFadeInEffect(windLabel);
+            applyFadeInEffect(conditionLabel);
+
+            fetchFiveDayForecast(city);
+
             errorLabel.setText(""); // Clear error
+
         } catch (Exception e) {
             e.printStackTrace();
             errorLabel.setText("⚠️ Could not fetch weather. Try again.");
         }
+        hideLoading();  // Hide loading indicator after fetching is done
     }
+
+    private void fetchFiveDayForecast(String city) {
+        String apiKey = "e4e1c82d1a5432a532f6bba792a86a46";  // Your API key
+        String url = "https://api.openweathermap.org/data/2.5/forecast?q=" + city + "&appid=" + apiKey;
+
+        try {
+            String response = WeatherFetcher.fetchWeatherData(url);
+            JSONObject json = new JSONObject(response);
+            JSONArray list = json.getJSONArray("list");
+
+            Map<String, JSONObject> dailyData = new LinkedHashMap<>();
+
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject entry = list.getJSONObject(i);
+                String dateTime = entry.getString("dt_txt");
+
+                if (dateTime.contains("12:00:00")) {  // pick one forecast per day (at 12 noon)
+                    String date = dateTime.split(" ")[0];
+                    dailyData.put(date, entry);
+
+                    if (dailyData.size() == 5) break;
+                }
+            }
+
+            showForecastUI(dailyData);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            errorLabel.setText("⚠️ Could not load forecast.");
+        }
+    }
+
+
+
+    private void showForecastUI(Map<String, JSONObject> forecastMap) {
+        forecastTextLabels.clear();               //clear previous labels
+        forecastContainer.getChildren().clear();  //clear old UI cards
+
+
+        for (Map.Entry<String, JSONObject> entry : forecastMap.entrySet()) {
+            String date = entry.getKey();
+            JSONObject obj = entry.getValue();
+
+            double temp = obj.getJSONObject("main").getDouble("temp") - 273.15;
+            String condition = obj.getJSONArray("weather").getJSONObject(0).getString("main");
+            String iconCode = obj.getJSONArray("weather").getJSONObject(0).getString("icon");
+
+            String iconPath = "/icons/" + iconCode + ".png";
+            Image icon = new Image(getClass().getResourceAsStream(iconPath));
+
+            // Create UI card
+            VBox forecastCard = new VBox(5);
+            forecastCard.setAlignment(Pos.CENTER);
+
+            Label dayLabel = new Label(LocalDate.parse(date).getDayOfWeek().toString());
+            Label tempLabel = new Label(String.format("%.1f°C", temp));
+            Label condLabel = new Label(condition);
+
+            forecastTextLabels.add(dayLabel);
+            forecastTextLabels.add(tempLabel);
+            forecastTextLabels.add(condLabel);
+
+
+
+            Color textColor = null;
+            dayLabel.setTextFill(textColor);
+            tempLabel.setTextFill(textColor);
+            condLabel.setTextFill(textColor);
+
+            //dayLabel.setTextFill(Color.WHITE);
+
+            // ✅ Set color based on current theme
+//            boolean isDarkMode = false;
+//            textColor = isDarkMode ? Color.WHITE : Color.BLACK;
+            textColor = isDarkMode ? Color.WHITE : Color.BLACK;
+
+            dayLabel.setTextFill(textColor);
+            tempLabel.setTextFill(textColor);
+            condLabel.setTextFill(textColor);
+
+
+            dayLabel.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+
+            ImageView iconView = new ImageView(icon);
+            iconView.setFitWidth(40);
+            iconView.setFitHeight(40);
+
+
+            forecastCard.getChildren().addAll(dayLabel, iconView, tempLabel, condLabel);
+
+            forecastContainer.getChildren().add(forecastCard);
+        }
+    }
+
+    private void hideLoading() {
+        progressIndicator.setVisible(false);
+        root.getChildren().remove(progressIndicator);  // Remove after loading
+    }
+
+    private void showLoading() {
+        progressIndicator = new ProgressIndicator();
+        progressIndicator.setStyle("-fx-progress-color: blue;");
+        progressIndicator.setVisible(true);
+        root.getChildren().add(progressIndicator);  // Add to your root container
+
+    }
+
+    private void applyFadeInEffect(Label label) {
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(1000), label);
+        fadeIn.setFromValue(0.0);
+        fadeIn.setToValue(1.0);
+        fadeIn.play();
+    }
+
+    private void applyZoomInEffect() {
+        ScaleTransition scaleIn = new ScaleTransition(Duration.millis(1000), title);
+        scaleIn.setFromX(0.5);
+        scaleIn.setFromY(0.5);
+        scaleIn.setToX(1.0);
+        scaleIn.setToY(1.0);
+        scaleIn.play();
+    }
+
+    private void updateForecastTheme() {
+        for (Node node : forecastContainer.getChildren()) {
+            if (node instanceof VBox forecastCard) {
+                for (Node child : forecastCard.getChildren()) {
+                    if (child instanceof Label label) {
+                        label.setTextFill(isDarkMode ? Color.WHITE : Color.BLACK);
+                    }
+                }
+            }
+        }
+    }
+
+
+
 
     public static void main(String[] args) {
         launch(args);
@@ -298,6 +442,10 @@ public class WeatherAppUI extends Application {
         fetchButton.setStyle("-fx-background-color: #1E90FF; -fx-text-fill: white;");
         cityLabel.setTextFill(Color.WHITE);
         title.setTextFill(Color.WHITE); //change title color
+
+        for (Label lbl : forecastTextLabels) {
+            lbl.setTextFill(Color.WHITE);
+        }
     }
 
     private void applyLightTheme(Parent root) {
@@ -314,6 +462,11 @@ public class WeatherAppUI extends Application {
         fetchButton.setStyle("-fx-background-color: #1E90FF; -fx-text-fill: white;");
         cityLabel.setTextFill(Color.BLACK);
         title.setTextFill(Color.BLACK); //change title color
+
+        for (Label lbl : forecastTextLabels) {
+            lbl.setTextFill(Color.BLACK);
+        }
+
     }
 
 }
