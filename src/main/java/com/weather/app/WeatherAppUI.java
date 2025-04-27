@@ -1,45 +1,4 @@
-//package com.weather.app;
-//
-//import javafx.application.Application;
-//import javafx.scene.Scene;
-//import javafx.scene.control.Button;
-//import javafx.scene.control.TextArea;
-//import javafx.scene.control.TextField;
-//import javafx.scene.layout.VBox;
-//import javafx.stage.Stage;
-//
-//
-//public class WeatherAppUI extends Application {
-//
-//    @Override
-//    public void start(Stage primaryStage){
-//        TextField cityInput = new TextField();
-//        cityInput.setPromptText("Enter City Name");
-//
-//        Button getWeatherButton = new Button("Get Weather");
-//
-//        TextArea weatherOutput = new TextArea();
-//        weatherOutput.setEditable(false);
-//
-//        getWeatherButton.setOnAction(e -> {
-//            String city = cityInput.getText();
-//            String weather = WeatherFetcher.fetchWeather(city);
-//            weatherOutput.setText(weather);
-//        });
-//
-//        VBox layout = new VBox(10);
-//        layout.getChildren().addAll(cityInput, getWeatherButton, weatherOutput);
-//        layout.setStyle("-fx-padding: 20;");
-//
-//        primaryStage.setTitle("Weather Forecast App");
-//        primaryStage.setScene(new Scene(layout, 400, 300));
-//        primaryStage.show();
-//
-//
-//    }
-//    public static void main(String[] args) {
-//        launch(args);
-//
+
 package com.weather.app;
 
 import javafx.animation.FadeTransition;
@@ -63,12 +22,31 @@ import javafx.util.Duration;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.*;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
+
 
 public class WeatherAppUI extends Application {
     private Label cityLabel;
-    private TextField cityInput;
+   // private TextField cityInput;
+   private ComboBox<String> cityInput;
+   private List<JSONObject> citySuggestions = new ArrayList<>();
+
+
     private Button fetchButton;
     private Label temperatureLabel;
     private Label humidityLabel;
@@ -98,8 +76,10 @@ public class WeatherAppUI extends Application {
 
 
 
+
+
     @Override
-    public void start(Stage primaryStage) {
+    public void start(Stage primaryStage) throws UnsupportedEncodingException {
         primaryStage.setTitle("🌤️ Weather App");
 
 
@@ -118,7 +98,67 @@ public class WeatherAppUI extends Application {
         cityLabel = new Label("Enter City Name:");
         cityLabel.setTextFill(Color.WHITE);
 
-        cityInput = new TextField();
+        //cityInput = new TextField();
+        cityInput = new ComboBox<>();
+        cityInput.setEditable(true);
+        cityInput.setPromptText("e.g., Delhi");
+        cityInput.setPrefWidth(200);
+        cityInput.setStyle("-fx-background-color: #333333; -fx-text-fill: white; -fx-prompt-text-fill: #aaaaaa;");
+
+
+        Button refreshButton = new Button("🔄 Refresh");
+        refreshButton.setOnAction(e -> updateWeather());
+        refreshButton.setStyle("-fx-background-color: #1E90FF; -fx-text-fill: white;");
+
+
+//
+//        mapView = new WebView();
+//        webEngine = mapView.getEngine();
+//        mapView.setPrefSize(400, 300);  // Adjust size
+//
+//// Optional: Initially load user's city
+//        //webEngine.load("https://www.google.com/maps?q=Delhi&output=embed");
+//
+//        String cityName = "Delhi"; // Or any dynamic city
+//        String gapiKey = "AIzaSyBPeK0Sli0SffVMYdZvQ_YdGXM8qHSC2NE"; // <<< Replace with your real API key
+//        //String mapUrl = "https://www.google.com/maps?q=" + URLEncoder.encode(city, "UTF-8") + "&output=embed";
+//        //String cityName = null;
+//        String mapUrl = "https://www.google.com/maps/embed/v1/place?key=AIzaSyBPeK0Sli0SffVMYdZvQ_YdGXM8qHSC2NE&q=" + URLEncoder.encode(cityName, StandardCharsets.UTF_8);
+//
+//
+//        String html = "<html><body style='margin:0;padding:0;'>" +
+//                "<iframe width='100%' height='100%' frameborder='0' style='border:0'" +
+//                " src='" + mapUrl + "' allowfullscreen>" +
+//                "</iframe>" +
+//                "</body></html>";
+//
+//        webEngine.loadContent(html);
+
+
+
+
+//        cityInput.getEditor().textProperty().addListener((obs, oldText, newText) -> {
+//            if (newText.length() >= 2) {
+//                try {
+//                    fetchCitySuggestions(newText);
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+//        });
+//        cityInput.getEditor().textProperty().addListener((obs, oldText, newText) -> {
+//            if (newText.length() >= 2) {
+//                try {
+//                    List<String> suggestions = fetchCitySuggestions(newText);
+//                    cityInput.getItems().setAll(suggestions);  // 💡 this line updates dropdown
+//                    cityInput.show(); // 🔽 shows the suggestion list
+//                } catch (Exception e) {
+//                    e.printStackTrace(); // good to log the error
+//                }
+//            }
+//        });
+
+
         cityInput.setPromptText("e.g., Delhi");
         cityInput.setPrefWidth(200);
         cityInput.setStyle("-fx-background-color: #333333; -fx-text-fill: white; -fx-prompt-text-fill: #aaaaaa;");
@@ -132,7 +172,7 @@ public class WeatherAppUI extends Application {
         forecastContainer.setAlignment(Pos.CENTER);
 
 
-        HBox inputBox = new HBox(10, cityLabel, cityInput, fetchButton);
+        HBox inputBox = new HBox(10, cityLabel, cityInput, fetchButton, refreshButton);
         inputBox.setAlignment(Pos.CENTER);
 
         //Weather Display
@@ -154,11 +194,9 @@ public class WeatherAppUI extends Application {
         weatherBox.setPadding(new Insets(10));
 
 
-
         //Error Label
         errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: red;");
-
 
 
         root = new VBox(20);
@@ -169,6 +207,8 @@ public class WeatherAppUI extends Application {
         //  Toggle button comes after root is defined
         ToggleButton themeToggle = new ToggleButton("🌙 Dark Mode");
         themeToggle.setStyle("-fx-background-color: #444; -fx-text-fill: white;");
+
+      //root.getChildren().add(mapView);
 
 
         themeToggle.setOnAction(e -> {
@@ -187,7 +227,6 @@ public class WeatherAppUI extends Application {
         });
 
 
-
         //  Add all elements to root
         root.getChildren().addAll(title, themeToggle, inputBox, weatherBox, forecastContainer, errorLabel);
 
@@ -199,10 +238,68 @@ public class WeatherAppUI extends Application {
         applyThemeTransition();
         applyZoomInEffect();
 
-        
+        String currentCity = getCurrentCityFromIP();
+        //cityInput.setText(currentCity);
+        cityInput.getEditor().setText(currentCity);
+        updateWeather(); // optional: auto-fetch weather on launch
+
+
+//        refreshButton = new Button("🔄 Refresh");
+//        refreshButton.setOnAction(e -> {
+//            updateWeather();  // It will re-fetch the weather
+//        });
 
 
     }
+
+
+
+
+
+//    List<String> fetchCitySuggestions(String cityPrefix) throws Exception {
+//        List<String> citySuggestions = new ArrayList<>();
+//
+//        // 1. Indian cities first
+//        String indianUrl = "https://wft-geo-db.p.rapidapi.com/v1/geo/cities?namePrefix=" + cityPrefix + "&limit=5&countryIds=IN";
+//        citySuggestions.addAll(fetchSuggestionsFromUrl(indianUrl));
+//
+//        // 2. Then global cities (excluding duplicates)
+//        String globalUrl = "https://wft-geo-db.p.rapidapi.com/v1/geo/cities?namePrefix=" + cityPrefix + "&limit=10";
+//        for (String city : fetchSuggestionsFromUrl(globalUrl)) {
+//            if (!citySuggestions.contains(city)) {
+//                citySuggestions.add(city);
+//            }
+//        }
+//
+//        return citySuggestions;
+//    }
+
+//    private List<String> fetchSuggestionsFromUrl(String url) throws Exception {
+//        List<String> suggestions = new ArrayList<>();
+//        HttpRequest request = HttpRequest.newBuilder()
+//                .uri(URI.create(url))
+//                .header("X-RapidAPI-Key", "50eff41001msh2b79b4d74258544p1468d5jsnd16a16e62e5b")
+//                .header("X-RapidAPI-Host", "wft-geo-db.p.rapidapi.com")
+//                .build();
+//
+//        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+//
+//        JSONObject json = new JSONObject(response.body());
+//        JSONArray data = json.getJSONArray("data");
+//
+//        for (int i = 0; i < data.length(); i++) {
+//            String cityName = data.getJSONObject(i).getString("name");
+//            suggestions.add(cityName);
+//        }
+//
+//        return suggestions;
+//    }
+
+
+
+
+
+
 
     private void applyThemeTransition() {
     }
@@ -227,11 +324,17 @@ public class WeatherAppUI extends Application {
 
     private void updateWeather() {
         showLoading();  // Show loading indicator
-        String city = cityInput.getText().trim();
-        if (city.isEmpty()) {
+
+        String fullInput = cityInput.getEditor().getText().trim();
+
+        if (fullInput.isEmpty()) {
             errorLabel.setText("❌ Please enter a city name.");
+            hideLoading();
             return;
         }
+
+        // Extract only the city name before the first comma
+        String city = fullInput.split(",")[0].trim();
 
         String apiKey = "e4e1c82d1a5432a532f6bba792a86a46"; // Replace with your actual key
         String url = "https://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + apiKey;
@@ -257,8 +360,6 @@ public class WeatherAppUI extends Application {
 
             // Load image from resources
             Image icon = new Image(getClass().getResourceAsStream(iconPath));
-
-            // Set image in the ImageView
             weatherIcon.setImage(icon);
 
             // Update UI
@@ -269,23 +370,47 @@ public class WeatherAppUI extends Application {
             conditionLabel.setText("🌥️ Condition: " + condition);
 
             // Apply fade-in effect
-            //applyFadeInEffect(weatherIcon);
             applyFadeInEffect(locationLabel);
             applyFadeInEffect(temperatureLabel);
             applyFadeInEffect(humidityLabel);
             applyFadeInEffect(windLabel);
             applyFadeInEffect(conditionLabel);
 
+            // Also update 5-day forecast using just the city
             fetchFiveDayForecast(city);
 
             errorLabel.setText(""); // Clear error
+
+//            //webview
+//            String cityNameForMap = cityInput.getEditor().getText().trim();
+//            String gapiKey = "AIzaSyBPeK0Sli0SffVMYdZvQ_YdGXM8qHSC2NE"; // Same one you used at the top
+//            //String mapUrl = "https://www.google.com/maps/embed/v1/place?key=" + gapiKey + "&q=" + URLEncoder.encode(cityNameForMap, "UTF-8");
+//            JSONObject coord = json.getJSONObject("coord");
+//            double lat = coord.getDouble("lat");
+//            double lon = coord.getDouble("lon");
+//
+//            String mapUrl = "https://www.google.com/maps/embed/v1/view?key=" + gapiKey
+//                    + "&center=" + lat + "," + lon
+//                    + "&zoom=10";  // optional, you can set zoom level
+//
+//            String html = "<html><body style='margin:0;padding:0;'>" +
+//                    "<iframe width='100%' height='100%' frameborder='0' style='border:0'" +
+//                    " src='" + mapUrl + "' allowfullscreen>" +
+//                    "</iframe>" +
+//                    "</body></html>";
+//
+//            webEngine.loadContent(html);
+
+
 
         } catch (Exception e) {
             e.printStackTrace();
             errorLabel.setText("⚠️ Could not fetch weather. Try again.");
         }
+
         hideLoading();  // Hide loading indicator after fetching is done
     }
+
 
     private void fetchFiveDayForecast(String city) {
         String apiKey = "e4e1c82d1a5432a532f6bba792a86a46";  // Your API key
@@ -350,7 +475,8 @@ public class WeatherAppUI extends Application {
 
 
 
-            Color textColor = null;
+            //Color textColor = null;
+            Color textColor = isDarkMode ? Color.WHITE : Color.BLACK;
             dayLabel.setTextFill(textColor);
             tempLabel.setTextFill(textColor);
             condLabel.setTextFill(textColor);
@@ -358,8 +484,7 @@ public class WeatherAppUI extends Application {
             //dayLabel.setTextFill(Color.WHITE);
 
             // ✅ Set color based on current theme
-//            boolean isDarkMode = false;
-//            textColor = isDarkMode ? Color.WHITE : Color.BLACK;
+
             textColor = isDarkMode ? Color.WHITE : Color.BLACK;
 
             dayLabel.setTextFill(textColor);
@@ -448,26 +573,107 @@ public class WeatherAppUI extends Application {
         }
     }
 
-    private void applyLightTheme(Parent root) {
-        root.setStyle("-fx-background-color: #f0f0f0;");
-        cityLabel.setTextFill(Color.BLACK);
-        locationLabel.setTextFill(Color.BLACK);
-        temperatureLabel.setTextFill(Color.BLACK);
-        humidityLabel.setTextFill(Color.BLACK);
-        windLabel.setTextFill(Color.BLACK);
-        conditionLabel.setTextFill(Color.BLACK);
-        errorLabel.setTextFill(Color.RED);
+//    private void applyLightTheme(Parent root) {
+//        root.setStyle("-fx-background-color: #f0f0f0;");
+//        cityLabel.setTextFill(Color.BLACK);
+//        locationLabel.setTextFill(Color.BLACK);
+//        temperatureLabel.setTextFill(Color.BLACK);
+//        humidityLabel.setTextFill(Color.BLACK);
+//        windLabel.setTextFill(Color.BLACK);
+//        conditionLabel.setTextFill(Color.BLACK);
+//        errorLabel.setTextFill(Color.RED);
+//
+//        cityInput.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-prompt-text-fill: #666666;");
+//        fetchButton.setStyle("-fx-background-color: #1E90FF; -fx-text-fill: white;");
+//        cityLabel.setTextFill(Color.BLACK);
+//        title.setTextFill(Color.BLACK); //change title color
+//
+//        for (Label lbl : forecastTextLabels) {
+//            lbl.setTextFill(Color.BLACK);
+//        }
+//    }
+private void applyLightTheme(Parent root) {
+    root.setStyle("-fx-background-color: #f0f0f0;");
+    cityLabel.setTextFill(Color.BLACK);
+    locationLabel.setTextFill(Color.BLACK);
+    temperatureLabel.setTextFill(Color.BLACK);
+    humidityLabel.setTextFill(Color.BLACK);
+    windLabel.setTextFill(Color.BLACK);
+    conditionLabel.setTextFill(Color.BLACK);
+    errorLabel.setTextFill(Color.RED);
 
-        cityInput.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-prompt-text-fill: #666666;");
-        fetchButton.setStyle("-fx-background-color: #1E90FF; -fx-text-fill: white;");
-        cityLabel.setTextFill(Color.BLACK);
-        title.setTextFill(Color.BLACK); //change title color
+    cityInput.setStyle("-fx-background-color: white; -fx-text-fill: black; -fx-prompt-text-fill: #888888;");
+    fetchButton.setStyle("-fx-background-color: #1E90FF; -fx-text-fill: white;");
+    title.setTextFill(Color.BLACK);
 
-        for (Label lbl : forecastTextLabels) {
-            lbl.setTextFill(Color.BLACK);
-        }
-
+    for (Label lbl : forecastTextLabels) {
+        lbl.setTextFill(Color.BLACK);
     }
+}
+
+    private String getCurrentCityFromIP() {
+        String apiUrl = "https://ipinfo.io/json";  // Free service that gives location info from IP
+
+        try {
+            HttpURLConnection connection = (HttpURLConnection) new URL(apiUrl).openConnection();
+            connection.setRequestMethod("GET");
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            JSONObject json = new JSONObject(response.toString());
+            String city = json.getString("city");  // Fetch city from response
+            return city;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Delhi"; // Default fallback city if error happens
+        }
+    }
+
+//    private String getCurrentCityFromIP() {
+//        try {
+//            URL url = new URL("http://ip-api.com/json/");
+//            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+//            conn.setRequestMethod("GET");
+//
+//            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+//            StringBuilder response = new StringBuilder();
+//            String line;
+//            while ((line = in.readLine()) != null) {
+//                response.append(line);
+//            }
+//            in.close();
+//
+//            // Parse JSON response
+//            JSONObject json = new JSONObject(response.toString());
+//            if (json.getString("status").equals("success")) {
+//                return json.getString("city");
+//            } else {
+//                return "Unknown";
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            return "Unknown";
+//        }
+//    }
+
+    private JSONObject getCurrentLocationFromIP() {
+        try {
+            String response = WeatherFetcher.fetchWeatherData("http://ip-api.com/json/");
+            return new JSONObject(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
 
 }
 
